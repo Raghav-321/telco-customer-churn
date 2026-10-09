@@ -29,41 +29,39 @@ import pandas as pd
 import mlflow
 
 # === MODEL LOADING CONFIGURATION ===
-# IMPORTANT: This path is set during Docker container build
-# In development: uses local MLflow artifacts
-# In production: uses model copied to container at build time
-MODEL_DIR = "/app/model"
+# Supports Docker (/app/model), direct repo execution, and Streamlit Cloud
+CONTAINER_MODEL = "/app/model"
+REPO_ARTIFACTS = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "model", "3b1a41221fc44548aed629fa42b762e0", "artifacts")
+)
+
+if os.path.exists(CONTAINER_MODEL):
+    model_load_path = CONTAINER_MODEL
+    feature_file = os.path.join(CONTAINER_MODEL, "feature_columns.txt")
+elif os.path.exists(REPO_ARTIFACTS):
+    model_load_path = os.path.join(REPO_ARTIFACTS, "model")
+    feature_file = os.path.join(REPO_ARTIFACTS, "feature_columns.txt")
+else:
+    import glob
+    local_model_paths = glob.glob("./mlruns/*/*/artifacts/model")
+    if local_model_paths:
+        latest_model = max(local_model_paths, key=os.path.getmtime)
+        model_load_path = latest_model
+        feature_file = os.path.join(os.path.dirname(latest_model), "feature_columns.txt")
+    else:
+        raise Exception("No model artifacts found in /app/model, repo artifacts, or mlruns")
 
 try:
-    # Load the trained XGBoost model in MLflow pyfunc format
-    # This ensures compatibility regardless of the underlying ML library
-    model = mlflow.pyfunc.load_model(MODEL_DIR)
-    print(f"✅ Model loaded successfully from {MODEL_DIR}")
+    model = mlflow.pyfunc.load_model(model_load_path)
+    print(f"✅ Model loaded successfully from {model_load_path}")
 except Exception as e:
-    print(f"❌ Failed to load model from {MODEL_DIR}: {e}")
-    # Fallback for local development (OPTIONAL)
-    try:
-        # Try loading from local MLflow tracking
-        import glob
-        local_model_paths = glob.glob("./mlruns/*/*/artifacts/model")
-        if local_model_paths:
-            latest_model = max(local_model_paths, key=os.path.getmtime)
-            model = mlflow.pyfunc.load_model(latest_model)
-            MODEL_DIR = latest_model
-            print(f"✅ Fallback: Loaded model from {latest_model}")
-        else:
-            raise Exception("No model found in local mlruns")
-    except Exception as fallback_error:
-        raise Exception(f"Failed to load model: {e}. Fallback failed: {fallback_error}")
+    raise Exception(f"Failed to load model from {model_load_path}: {e}")
 
 # === FEATURE SCHEMA LOADING ===
-# CRITICAL: Load the exact feature column order used during training
-# This ensures the model receives features in the expected order
 try:
-    feature_file = os.path.join(MODEL_DIR, "feature_columns.txt")
     with open(feature_file) as f:
         FEATURE_COLS = [ln.strip() for ln in f if ln.strip()]
-    print(f"✅ Loaded {len(FEATURE_COLS)} feature columns from training")
+    print(f"✅ Loaded {len(FEATURE_COLS)} feature columns from {feature_file}")
 except Exception as e:
     raise Exception(f"Failed to load feature columns: {e}")
 
