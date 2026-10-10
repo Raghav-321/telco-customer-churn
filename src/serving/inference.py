@@ -186,9 +186,25 @@ def predict(input_dict: dict) -> str:
         "Likely to churn"
     """
     
-    # === STEP 1: Convert Input to DataFrame ===
+    # === STEP 1: Convert Input to DataFrame & Handle Defaults ===
+    data = input_dict.copy()
+    
+    # Auto-calculate TotalCharges if not provided by user
+    if "TotalCharges" not in data or data["TotalCharges"] is None:
+        tenure_val = float(data.get("tenure", 0))
+        monthly_val = float(data.get("MonthlyCharges", 0))
+        data["TotalCharges"] = tenure_val * monthly_val
+
+    # Auto-fill defaults for fields removed from user form
+    data.setdefault("Dependents", "No")
+    data.setdefault("MultipleLines", "No")
+    data.setdefault("OnlineBackup", "No")
+    data.setdefault("StreamingTV", "No")
+    data.setdefault("StreamingMovies", "No")
+    data.setdefault("SeniorCitizen", 0)
+
     # Create single-row DataFrame for pandas transformations
-    df = pd.DataFrame([input_dict])
+    df = pd.DataFrame([data])
     
     # === STEP 2: Apply Feature Transformations ===
     # Use the same transformation pipeline as training

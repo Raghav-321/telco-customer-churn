@@ -33,31 +33,22 @@ def root():
     return {"status": "ok"}
 
 # === REQUEST DATA SCHEMA ===
+# === REQUEST DATA SCHEMA ===
 # Pydantic model for automatic validation and API documentation
 class CustomerData(BaseModel):
     """
     Customer data schema for churn prediction.
-    
-    This schema defines the exact 18 features required for churn prediction.
-    All features match the original dataset structure for consistency.
     """
     # Demographics
     gender: str                # "Male" or "Female"
     Partner: str               # "Yes" or "No" - has partner
-    Dependents: str            # "Yes" or "No" - has dependents
     
-    # Phone services
+    # Phone & Internet services
     PhoneService: str          # "Yes" or "No"
-    MultipleLines: str         # "Yes", "No", or "No phone service"
-    
-    # Internet services  
     InternetService: str       # "DSL", "Fiber optic", or "No"
     OnlineSecurity: str        # "Yes", "No", or "No internet service"
-    OnlineBackup: str          # "Yes", "No", or "No internet service"
     DeviceProtection: str      # "Yes", "No", or "No internet service"
     TechSupport: str           # "Yes", "No", or "No internet service"
-    StreamingTV: str           # "Yes", "No", or "No internet service"
-    StreamingMovies: str       # "Yes", "No", or "No internet service"
     
     # Account information
     Contract: str              # "Month-to-month", "One year", "Two year"
@@ -67,29 +58,18 @@ class CustomerData(BaseModel):
     # Numeric features
     tenure: int                # Number of months with company
     MonthlyCharges: float      # Monthly charges in dollars
-    TotalCharges: float        # Total charges to date
 
 # === MAIN PREDICTION API ENDPOINT ===
 @app.post("/predict")
 def get_prediction(data: CustomerData):
     """
     Main prediction endpoint for customer churn prediction.
-    
-    This endpoint:
-    1. Receives validated customer data via Pydantic model
-    2. Calls the inference pipeline to transform features and predict
-    3. Returns churn prediction in JSON format
-    
-    Expected Response:
-    - {"prediction": "Likely to churn"} or {"prediction": "Not likely to churn"}
-    - {"error": "error_message"} if prediction fails
     """
     try:
         # Convert Pydantic model to dict and call inference pipeline
         result = predict(data.dict())
         return {"prediction": result}
     except Exception as e:
-        # Return error details for debugging (consider logging in production)
         return {"error": str(e)}
 
 
@@ -98,71 +78,46 @@ def get_prediction(data: CustomerData):
 
 # === GRADIO WEB INTERFACE ===
 def gradio_interface(
-    gender, Partner, Dependents, PhoneService, MultipleLines,
-    InternetService, OnlineSecurity, OnlineBackup, DeviceProtection,
-    TechSupport, StreamingTV, StreamingMovies, Contract,
-    PaperlessBilling, PaymentMethod, tenure, MonthlyCharges, TotalCharges
+    gender, Partner, PhoneService, InternetService, OnlineSecurity,
+    DeviceProtection, TechSupport, Contract, PaperlessBilling,
+    PaymentMethod, tenure, MonthlyCharges
 ):
-    """
-    Gradio interface function that processes form inputs and returns prediction.
-    
-    This function:
-    1. Takes individual form inputs from Gradio UI
-    2. Constructs the data dictionary matching the API schema
-    3. Calls the same inference pipeline used by the API
-    4. Returns user-friendly prediction string
-    
-    """
-    # Construct data dictionary matching CustomerData schema
+    # Construct data dictionary matching streamlined schema
     data = {
         "gender": gender,
         "Partner": Partner,
-        "Dependents": Dependents,
         "PhoneService": PhoneService,
-        "MultipleLines": MultipleLines,
         "InternetService": InternetService,
         "OnlineSecurity": OnlineSecurity,
-        "OnlineBackup": OnlineBackup,
         "DeviceProtection": DeviceProtection,
         "TechSupport": TechSupport,
-        "StreamingTV": StreamingTV,
-        "StreamingMovies": StreamingMovies,
         "Contract": Contract,
         "PaperlessBilling": PaperlessBilling,
         "PaymentMethod": PaymentMethod,
-        "tenure": int(tenure),              # Ensure integer type
-        "MonthlyCharges": float(MonthlyCharges),  # Ensure float type
-        "TotalCharges": float(TotalCharges),      # Ensure float type
+        "tenure": int(tenure),
+        "MonthlyCharges": float(MonthlyCharges),
     }
     
-    # Call same inference pipeline as API endpoint
+    # Call inference pipeline
     result = predict(data)
-    return str(result)  # Return as string for Gradio display
+    return str(result)
 
 # === GRADIO UI CONFIGURATION ===
-# Build comprehensive Gradio interface with all customer features
 demo = gr.Interface(
     fn=gradio_interface,
     inputs=[
         # Demographics section
         gr.Dropdown(["Male", "Female"], label="Gender", value="Male"),
         gr.Dropdown(["Yes", "No"], label="Partner", value="No"),
-        gr.Dropdown(["Yes", "No"], label="Dependents", value="No"),
         
-        # Phone services section
+        # Phone & Internet services section
         gr.Dropdown(["Yes", "No"], label="Phone Service", value="Yes"),
-        gr.Dropdown(["Yes", "No", "No phone service"], label="Multiple Lines", value="No"),
-        
-        # Internet services section (key churn predictors)
         gr.Dropdown(["DSL", "Fiber optic", "No"], label="Internet Service", value="Fiber optic"),
         gr.Dropdown(["Yes", "No", "No internet service"], label="Online Security", value="No"),
-        gr.Dropdown(["Yes", "No", "No internet service"], label="Online Backup", value="No"),
         gr.Dropdown(["Yes", "No", "No internet service"], label="Device Protection", value="No"),
         gr.Dropdown(["Yes", "No", "No internet service"], label="Tech Support", value="No"),
-        gr.Dropdown(["Yes", "No", "No internet service"], label="Streaming TV", value="Yes"),
-        gr.Dropdown(["Yes", "No", "No internet service"], label="Streaming Movies", value="Yes"),
         
-        # Contract and billing section (major churn factors)
+        # Contract and billing section
         gr.Dropdown(["Month-to-month", "One year", "Two year"], label="Contract", value="Month-to-month"),
         gr.Dropdown(["Yes", "No"], label="Paperless Billing", value="Yes"),
         gr.Dropdown([
@@ -170,10 +125,9 @@ demo = gr.Interface(
             "Bank transfer (automatic)", "Credit card (automatic)"
         ], label="Payment Method", value="Electronic check"),
         
-        # Numeric features (important for churn prediction)
+        # Numeric features
         gr.Number(label="Tenure (months)", value=1, minimum=0, maximum=100),
         gr.Number(label="Monthly Charges ($)", value=85.0, minimum=0, maximum=200),
-        gr.Number(label="Total Charges ($)", value=85.0, minimum=0, maximum=10000),
     ],
     outputs=gr.Textbox(label="Churn Prediction", lines=2),
     title="🔮 Telco Customer Churn Predictor",
@@ -182,21 +136,14 @@ demo = gr.Interface(
     
     Fill in the customer details below to get a churn prediction. The model uses XGBoost trained on 
     historical telecom customer data to identify customers at risk of churning.
-    
-    💡 **Tip**: Month-to-month contracts with fiber optic internet and electronic check payments 
-    tend to have higher churn rates.
     """,
     examples=[
         # High churn risk example
-        ["Female", "No", "No", "Yes", "No", "Fiber optic", "No", "No", "No", 
-         "No", "Yes", "Yes", "Month-to-month", "Yes", "Electronic check", 
-         1, 85.0, 85.0],
+        ["Female", "No", "Yes", "Fiber optic", "No", "No", "No", "Month-to-month", "Yes", "Electronic check", 1, 85.0],
         # Low churn risk example  
-        ["Male", "Yes", "Yes", "Yes", "Yes", "DSL", "Yes", "Yes", "Yes",
-         "Yes", "No", "No", "Two year", "No", "Credit card (automatic)",
-         60, 45.0, 2700.0]
+        ["Male", "Yes", "Yes", "DSL", "Yes", "Yes", "Yes", "Two year", "No", "Credit card (automatic)", 60, 45.0]
     ],
-    theme=gr.themes.Soft()  # Professional appearance
+    theme=gr.themes.Soft()
 )
 
 # === MOUNT GRADIO UI INTO FASTAPI ===

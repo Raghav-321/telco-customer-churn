@@ -72,66 +72,48 @@ preset = st.sidebar.selectbox(
 if preset == "High Churn Risk Customer":
     default_gender = "Female"
     default_partner = "No"
-    default_dependents = "No"
     default_phone = "Yes"
-    default_multiple = "No"
     default_internet = "Fiber optic"
     default_security = "No"
-    default_backup = "No"
     default_device = "No"
     default_tech = "No"
-    default_tv = "Yes"
-    default_movies = "Yes"
     default_contract = "Month-to-month"
     default_billing = "Yes"
     default_payment = "Electronic check"
     default_tenure = 1
     default_monthly = 85.0
-    default_total = 85.0
 elif preset == "Low Churn Risk Customer":
     default_gender = "Male"
     default_partner = "Yes"
-    default_dependents = "Yes"
     default_phone = "Yes"
-    default_multiple = "Yes"
     default_internet = "DSL"
     default_security = "Yes"
-    default_backup = "Yes"
     default_device = "Yes"
     default_tech = "Yes"
-    default_tv = "No"
-    default_movies = "No"
     default_contract = "Two year"
     default_billing = "No"
     default_payment = "Credit card (automatic)"
     default_tenure = 60
     default_monthly = 45.0
-    default_total = 2700.0
 else:
     default_gender = "Male"
     default_partner = "No"
-    default_dependents = "No"
     default_phone = "Yes"
-    default_multiple = "No"
     default_internet = "Fiber optic"
     default_security = "No"
-    default_backup = "No"
     default_device = "No"
     default_tech = "No"
-    default_tv = "Yes"
-    default_movies = "Yes"
     default_contract = "Month-to-month"
     default_billing = "Yes"
     default_payment = "Electronic check"
     default_tenure = 12
     default_monthly = 70.0
-    default_total = 840.0
 
 st.sidebar.markdown("---")
 st.sidebar.info("""
 **Model Details:**
 - **Engine:** XGBoost Classifier
-- **Features:** 18 Customer Attributes
+- **Features:** Streamlined Customer Attributes
 - **Framework:** MLflow & Scikit-learn
 """)
 
@@ -140,20 +122,14 @@ with st.form("churn_prediction_form"):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.subheader("👤 Demographics")
+        st.subheader("👤 Demographics & Tenure")
         gender = st.selectbox("Gender", ["Male", "Female"], index=0 if default_gender == "Male" else 1)
         partner = st.selectbox("Partner", ["Yes", "No"], index=0 if default_partner == "Yes" else 1)
-        dependents = st.selectbox("Dependents", ["Yes", "No"], index=0 if default_dependents == "Yes" else 1)
         tenure = st.number_input("Tenure (Months with company)", min_value=0, max_value=100, value=default_tenure, step=1)
 
     with col2:
-        st.subheader("📞 Phone & Internet Services")
+        st.subheader("📞 Services & Protection")
         phone_service = st.selectbox("Phone Service", ["Yes", "No"], index=0 if default_phone == "Yes" else 1)
-        multiple_lines = st.selectbox(
-            "Multiple Lines",
-            ["Yes", "No", "No phone service"],
-            index=["Yes", "No", "No phone service"].index(default_multiple)
-        )
         internet_service = st.selectbox(
             "Internet Service",
             ["DSL", "Fiber optic", "No"],
@@ -164,11 +140,6 @@ with st.form("churn_prediction_form"):
             ["Yes", "No", "No internet service"],
             index=["Yes", "No", "No internet service"].index(default_security)
         )
-        online_backup = st.selectbox(
-            "Online Backup",
-            ["Yes", "No", "No internet service"],
-            index=["Yes", "No", "No internet service"].index(default_backup)
-        )
         device_protection = st.selectbox(
             "Device Protection",
             ["Yes", "No", "No internet service"],
@@ -178,16 +149,6 @@ with st.form("churn_prediction_form"):
             "Tech Support",
             ["Yes", "No", "No internet service"],
             index=["Yes", "No", "No internet service"].index(default_tech)
-        )
-        streaming_tv = st.selectbox(
-            "Streaming TV",
-            ["Yes", "No", "No internet service"],
-            index=["Yes", "No", "No internet service"].index(default_tv)
-        )
-        streaming_movies = st.selectbox(
-            "Streaming Movies",
-            ["Yes", "No", "No internet service"],
-            index=["Yes", "No", "No internet service"].index(default_movies)
         )
 
     with col3:
@@ -220,37 +181,28 @@ with st.form("churn_prediction_form"):
             value=float(default_monthly),
             step=0.5
         )
-        total_charges = st.number_input(
-            "Total Charges ($)",
-            min_value=0.0,
-            max_value=15000.0,
-            value=float(default_total),
-            step=1.0
-        )
 
     submit_button = st.form_submit_button("🚀 Run Churn Prediction", use_container_width=True)
 
 # Prediction Result Section
 if submit_button:
+    # Auto-calculate total charges from tenure and monthly charges
+    calculated_total_charges = float(tenure) * float(monthly_charges)
+
     customer_dict = {
         "gender": gender,
         "Partner": partner,
-        "Dependents": dependents,
         "PhoneService": phone_service,
-        "MultipleLines": multiple_lines,
         "InternetService": internet_service,
         "OnlineSecurity": online_security,
-        "OnlineBackup": online_backup,
         "DeviceProtection": device_protection,
         "TechSupport": tech_support,
-        "StreamingTV": streaming_tv,
-        "StreamingMovies": streaming_movies,
         "Contract": contract,
         "PaperlessBilling": paperless_billing,
         "PaymentMethod": payment_method,
         "tenure": int(tenure),
         "MonthlyCharges": float(monthly_charges),
-        "TotalCharges": float(total_charges),
+        "TotalCharges": calculated_total_charges,
     }
 
     try:
